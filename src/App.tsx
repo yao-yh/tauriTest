@@ -1,21 +1,27 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
+  CloudDownloadOutlined,
   DeleteOutlined,
   EditOutlined,
   PlusOutlined,
   ReloadOutlined,
+  SyncOutlined,
 } from '@ant-design/icons'
 import { invoke } from '@tauri-apps/api/core'
+import { relaunch } from '@tauri-apps/plugin-process'
+import { check } from '@tauri-apps/plugin-updater'
 import {
   App as AntdApp,
   Button,
   Card,
   ConfigProvider,
+  Descriptions,
   Empty,
   Form,
   Input,
   Modal,
   Popconfirm,
+  Progress,
   Space,
   Table,
   Tag,
@@ -39,6 +45,15 @@ interface ItemForm {
   description?: string
 }
 
+interface ResourceBundleInfo {
+  key: string
+  version: string
+  localPath: string
+  installedFiles: number
+}
+
+type AvailableUpdate = NonNullable<Awaited<ReturnType<typeof check>>>
+
 function formatDate(value: string) {
   const date = new Date(value.replace(' ', 'T') + 'Z')
   return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN')
@@ -52,6 +67,11 @@ function CrudPage() {
   const [saving, setSaving] = useState(false)
   const [editingItem, setEditingItem] = useState<Item | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
+  const [resourceInfo, setResourceInfo] = useState<ResourceBundleInfo | null>(null)
+  const [checkingUpdate, setCheckingUpdate] = useState(false)
+  const [availableUpdate, setAvailableUpdate] = useState<AvailableUpdate | null>(null)
+  const [installingUpdate, setInstallingUpdate] = useState(false)
+  const [updateProgress, setUpdateProgress] = useState(0)
 
   const loadItems = useCallback(async () => {
     setLoading(true)
@@ -64,9 +84,64 @@ function CrudPage() {
     }
   }, [message])
 
+  const checkForUpdates = useCallback(
+    async (silent = false) => {
+      setCheckingUpdate(true)
+      try {
+        const update = await check()
+        if (update) {
+          setAvailableUpdate(update)
+        } else if (!silent) {
+          message.success('当前已经是最新版本')
+        }
+      } catch (error) {
+        if (!silent) {
+          message.error(`检查更新失败：${String(error)}`)
+        }
+      } finally {
+        setCheckingUpdate(false)
+      }
+    },
+    [message],
+  )
+
   useEffect(() => {
     void loadItems()
-  }, [loadItems])
+    void invoke<ResourceBundleInfo>('get_resource_bundle_info')
+      .then(setResourceInfo)
+      .catch((error) => message.warning(`读取本地资源信息失败：${String(error)}`))
+
+    const timer = window.setTimeout(() => void checkForUpdates(true), 1500)
+    return () => window.clearTimeout(timer)
+  }, [checkForUpdates, loadItems, message])
+
+  const installUpdate = async () => {
+    if (!availableUpdate) return
+
+    setInstallingUpdate(true)
+    setUpdateProgress(0)
+    let downloaded = 0
+    let contentLength = 0
+    try {
+      await availableUpdate.downloadAndInstall((event) => {
+        if (event.event === 'Started') {
+          contentLength = event.data.contentLength ?? 0
+        } else if (event.event === 'Progress') {
+          downloaded += event.data.chunkLength
+          if (contentLength > 0) {
+            setUpdateProgress(Math.min(100, Math.round((downloaded / contentLength) * 100)))
+          }
+        } else if (event.event === 'Finished') {
+          setUpdateProgress(100)
+        }
+      })
+      message.success('更新已安装，正在重新启动')
+      await relaunch()
+    } catch (error) {
+      message.error(`安装更新失败：${String(error)}`)
+      setInstallingUpdate(false)
+    }
+  }
 
   const openCreateModal = () => {
     setEditingItem(null)
@@ -130,7 +205,8 @@ function CrudPage() {
       title: '说明',
       dataIndex: 'description',
       ellipsis: true,
-      render: (description: string | null) => description || <span className="muted">暂无说明</span>,
+      render: (description: string | null) =>
+        description || <span className="muted">暂无说明</span>,
     },
     {
       title: '更新时间',
@@ -168,12 +244,21 @@ function CrudPage() {
     <main className="page-shell">
       <section className="hero">
         <div>
-          <Typography.Title level={2}>桌面列表管理</Typography.Title>
+          <Typography.Title level={2}>ListNest 本地清单</Typography.Title>
           <Typography.Paragraph>
             Tauri + React 19 + Ant Design + Prisma SQLite
           </Typography.Paragraph>
         </div>
-        <Tag color="green">本地数据库持久化</Tag>
+        <Space>
+          <Button
+            icon={<SyncOutlined spin={checkingUpdate} />}
+            loading={checkingUpdate}
+            onClick={() => void checkForUpdates(false)}
+          >
+            检查更新
+          </Button>
+          <Tag color="green">本地数据库持久化</Tag>
+        </Space>
       </section>
 
       <Card className="content-card" bordered={false}>
@@ -201,6 +286,31 @@ function CrudPage() {
           locale={{ emptyText: <Empty description="还没有数据，点击右上角新增" /> }}
           scroll={{ x: 800 }}
         />
+
+        {resourceInfo && (
+          <Descriptions
+            className="resource-info"
+            title="安装包内置资源"
+            size="small"
+            column={1}
+            items={[
+              {
+                key: 'version',
+                label: '资源版本',
+                children: `${resourceInfo.version}（${resourceInfo.installedFiles} 个文件）`,
+              },
+              {
+                key: 'path',
+                label: '本地目录',
+                children: (
+                  <Typography.Text copyable={{ text: resourceInfo.localPath }}>
+                    {resourceInfo.localPath}
+                  </Typography.Text>
+                ),
+              },
+            ]}
+          />
+        )}
       </Card>
 
       <Modal
@@ -232,6 +342,32 @@ function CrudPage() {
             <Input.TextArea rows={4} placeholder="可选，补充一些说明" showCount maxLength={500} />
           </Form.Item>
         </Form>
+      </Modal>
+
+      <Modal
+        title={`发现新版本 ${availableUpdate?.version ?? ''}`}
+        open={Boolean(availableUpdate)}
+        okText={installingUpdate ? '正在安装' : '下载并安装'}
+        cancelText="稍后提醒"
+        okButtonProps={{ icon: <CloudDownloadOutlined />, disabled: installingUpdate }}
+        cancelButtonProps={{ disabled: installingUpdate }}
+        closable={!installingUpdate}
+        maskClosable={!installingUpdate}
+        onOk={() => void installUpdate()}
+        onCancel={() => setAvailableUpdate(null)}
+      >
+        <Typography.Paragraph>
+          {availableUpdate?.body || '新版本包含功能改进和问题修复。'}
+        </Typography.Paragraph>
+        {installingUpdate && (
+          <Progress
+            percent={updateProgress}
+            status={updateProgress === 100 ? 'success' : 'active'}
+          />
+        )}
+        <Typography.Text type="secondary">
+          安装完成后应用会自动重启，现有数据和本地资源不会丢失。
+        </Typography.Text>
       </Modal>
     </main>
   )

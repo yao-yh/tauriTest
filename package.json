@@ -1,7 +1,7 @@
 {
-  "name": "tauri-react-prisma-crud",
+  "name": "listnest-desktop",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "packageManager": "pnpm@10.11.1",
   "type": "module",
   "scripts": {
@@ -14,12 +14,16 @@
     "db:deploy": "node -e \"const fs=require('fs');fs.closeSync(fs.openSync('prisma/dev.db','a'))\" && prisma migrate deploy",
     "tauri": "tauri",
     "tauri:dev": "tauri dev",
-    "tauri:build": "tauri build"
+    "tauri:build": "tauri build",
+    "release:manifest": "node scripts/generate-update-manifest.mjs",
+    "release:build": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-update.ps1"
   },
   "dependencies": {
     "@ant-design/icons": "^6.2.5",
     "@prisma/client": "6.19.3",
     "@tauri-apps/api": "^2.11.0",
+    "@tauri-apps/plugin-process": "~2.3.1",
+    "@tauri-apps/plugin-updater": "~2.10.1",
     "antd": "^6.4.3",
     "react": "^19.2.7",
     "react-dom": "^19.2.7"

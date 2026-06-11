@@ -14,6 +14,9 @@ dist-ssr
 src-tauri/target
 prisma/dev.db
 prisma/dev.db-journal
+release
+*.key
+*.key.pub
 
 # Editor directories and files
 .vscode/*

@@ -45,6 +45,13 @@
   color: #9ca3af;
 }
 
+.resource-info {
+  margin-top: 24px;
+  padding: 18px 20px 4px;
+  border-radius: 10px;
+  background: #f7f9fc;
+}
+
 @media (max-width: 720px) {
   .page-shell {
     padding: 20px;

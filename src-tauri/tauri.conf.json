@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "Desktop List Manager",
-  "version": "0.1.0",
+  "productName": "ListNest",
+  "version": "0.2.0",
   "identifier": "com.example.tauri-react-prisma-crud",
   "build": {
     "frontendDist": "../dist",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "桌面列表管理",
+        "title": "ListNest 本地清单",
         "width": 1080,
         "height": 720,
         "minWidth": 820,
@@ -28,6 +28,10 @@
   "bundle": {
     "active": true,
     "targets": "nsis",
+    "createUpdaterArtifacts": true,
+    "resources": [
+      "resources/**/*"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -37,6 +41,17 @@
     ],
     "android": {
       "debugApplicationIdSuffix": ".debug"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDIzREREMjlBNDY1MkZBRTcKUldUbitsSkdtdExkSXkyN0NlSGxXQmVBTmNLbGt1U0NXbHh1R28zM3NUWkYySVU3UDFlSUduYkwK",
+      "endpoints": [
+        "https://updates.example.com/listnest/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }

@@ -1,8 +1,8 @@
 [package]
-name = "tauri-react-prisma-crud"
-version = "0.1.0"
-description = "Tauri React Prisma CRUD desktop application"
-authors = ["Tauri CRUD Team"]
+name = "listnest"
+version = "0.2.0"
+description = "ListNest local list manager"
+authors = ["ListNest Team"]
 license = ""
 repository = ""
 edition = "2021"
@@ -11,7 +11,7 @@ rust-version = "1.77.2"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
-name = "tauri_react_prisma_crud_lib"
+name = "listnest_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
@@ -24,3 +24,7 @@ log = "0.4"
 tauri = { version = "2.11.2", features = [] }
 tauri-plugin-log = "2"
 rusqlite = { version = "0.37", features = ["bundled"] }
+tauri-plugin-process = "2"
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = "2"

@@ -1,22 +1,23 @@
-# Tauri React Prisma CRUD
+# ListNest
 
-一个本地桌面列表管理示例，支持新增、查询、编辑和删除，数据持久化到 SQLite。
+ListNest 是一个基于 Tauri 2、React 19、Ant Design、Prisma 和 SQLite 的本地清单管理示例。
+它包含完整 CRUD、数据库版本迁移，以及安装包内置资源首次落盘能力。
 
-## 技术栈
+## 应用标识
 
-- Tauri 2
-- React 19 + TypeScript + Vite
-- Ant Design 6
-- Prisma 6（数据模型与迁移）
-- SQLite + Rust `rusqlite`（桌面运行时）
-- pnpm
+- 显示名称：`ListNest`
+- 窗口标题：`ListNest 本地清单`
+- Windows 进程：`listnest.exe`
+- 安装包：`ListNest_<版本>_x64-setup.exe`
+- 应用标识：`com.example.tauri-react-prisma-crud`
+- 图标源文件：`src-tauri/icons/app-icon-source.png`
 
-> Prisma Client 是 Node.js 客户端，不能直接运行在 Tauri 的 Rust 进程中。本项目使用 Prisma 管理
-> Schema 和迁移 SQL，Tauri 运行时通过 Rust 读取同一套迁移并访问 SQLite。安装后的应用不要求用户安装 Node.js。
+应用标识故意保持不变，以便从旧版升级时继续使用原安装记录和用户数据目录。
+
+`pnpm tauri icon` 会生成 Windows、macOS、iOS 和 Android 的完整尺寸集。当前 Windows
+打包配置只直接引用 PNG、ICO 和 ICNS 中的核心文件；其余尺寸可为未来跨平台发布保留。
 
 ## 快速开始
-
-首次使用请先阅读 [Windows 环境安装指南](docs/WINDOWS_SETUP.md)。
 
 ```powershell
 pnpm install
@@ -31,37 +32,41 @@ pnpm tauri:dev
 pnpm tauri:build
 ```
 
-构建产物位于：
+产物位于 `src-tauri/target/release/bundle/nsis/`。
 
-```text
-src-tauri/target/release/bundle/
-```
+## 数据库升级
 
-## 数据位置
+Prisma 负责维护 `prisma/schema.prisma` 和迁移 SQL。桌面应用启动时读取
+`src-tauri/src/lib.rs` 中的 `MIGRATIONS` 列表，并通过用户数据库中的
+`_app_migrations` 表确保每个迁移只执行一次。
 
-- Prisma 开发数据库：`prisma/dev.db`
-- 桌面应用数据库：Windows 应用数据目录下的 `items.db`
-
-桌面数据库在应用首次启动时自动创建，表结构来自
-`prisma/migrations/20260611000000_init/migration.sql`。
-
-## 常用命令
-
-| 命令 | 用途 |
-| --- | --- |
-| `pnpm tauri:dev` | 启动完整桌面开发环境 |
-| `pnpm dev` | 只启动前端网页，不具备 Tauri 数据命令 |
-| `pnpm build` | 检查 TypeScript 并构建前端 |
-| `pnpm lint` | 检查前端代码 |
-| `pnpm db:generate` | 根据 Prisma Schema 生成客户端 |
-| `pnpm db:migrate` | 开发阶段创建新的 Prisma 迁移 |
-| `pnpm db:deploy` | 将已有迁移应用到开发数据库 |
-| `pnpm tauri:build` | 构建 exe 和 Windows 安装包 |
-
-## 新增数据库字段
+新增数据库变更时：
 
 1. 修改 `prisma/schema.prisma`。
-2. 执行 `pnpm db:migrate --name 字段名称`。
-3. 检查新生成的 `migration.sql`。
-4. 在 `src-tauri/src/lib.rs` 中同步 Rust 数据结构和 SQL。
-5. 执行 `pnpm tauri:dev` 验证升级后的已有数据库。
+2. 执行 `pnpm db:migrate --name 迁移名称`。
+3. 将新迁移通过 `include_str!` 加入 Rust 的 `MIGRATIONS` 列表。
+4. 同步 Rust 数据结构和查询。
+5. 使用旧版本数据库验证升级。
+
+迁移必须向前兼容，发布后不能修改已经执行过的迁移文件，只能新增迁移。
+
+## 安装包内置资源
+
+示例资源位于 `src-tauri/resources/starter-pack/`：
+
+- CSV 导入模板
+- 默认列配置
+- 离线说明文件
+
+这些文件会进入安装包，并在应用启动时复制到：
+
+```text
+%APPDATA%\com.example.tauri-react-prisma-crud\resources\starter-pack\
+```
+
+升级策略是“只复制缺失文件，不覆盖已有同名文件”。因此用户可以编辑本地模板或配置，
+新版本仍可补充新的资源文件。资源版本记录在 `app_resource_bundles` 表中。
+
+详细升级与资源设计见 [升级与资源方案](docs/UPGRADE_AND_RESOURCES.md)。
+客户端自动更新和发布流程见 [自动更新文档](docs/AUTO_UPDATE.md)。
+完整环境安装步骤见 [Windows 环境安装指南](docs/WINDOWS_SETUP.md)。

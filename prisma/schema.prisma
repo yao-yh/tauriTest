@@ -16,3 +16,11 @@ model Item {
 
   @@map("items")
 }
+
+model AppResourceBundle {
+  key         String   @id
+  version     String
+  installedAt DateTime @default(now()) @map("installed_at")
+
+  @@map("app_resource_bundles")
+}
